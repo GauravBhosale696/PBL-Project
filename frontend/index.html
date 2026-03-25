@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Health Risk Predictor</title>
+    <style>
+body {
+    font-family: Arial;
+    text-align: center;
+    margin-top: 20px;
+}
+
+input, select {
+    padding: 8px;
+    width: 220px;
+}
+
+button {
+    padding: 10px;
+    background-color: blue;
+    color: white;
+    border: none;
+}
+
+#result {
+    margin-top: 20px;
+    font-size: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>AI Health Risk Predictor</h1>
+
+<form id="predictionForm">
+
+<!-- GENDER -->
+<select id="gender">
+    <option value="">Select Gender</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+</select><br><br>
+
+<!-- DIABETES -->
+<h3>Diabetes Inputs</h3>
+<input type="number" placeholder="Pregnancies" id="Pregnancies"><br><br>
+<input type="number" placeholder="Glucose" id="Glucose"><br><br>
+<input type="number" placeholder="Blood Pressure" id="BloodPressure"><br><br>
+<input type="number" placeholder="Skin Thickness" id="SkinThickness"><br><br>
+<input type="number" placeholder="Insulin" id="Insulin"><br><br>
+<input type="number" placeholder="BMI" id="BMI"><br><br>
+<input type="number" step="0.01" placeholder="Diabetes Pedigree" id="DPF"><br><br>
+<input type="number" placeholder="Age" id="Age"><br><br>
+
+<!-- PCOS -->
+<div id="pcosSection" style="display:none;">
+<h3>PCOS Inputs</h3>
+
+<input type="number" placeholder="Follicle No. (R)" id="folR"><br><br>
+<input type="number" placeholder="Follicle No. (L)" id="folL"><br><br>
+<input type="number" placeholder="Skin Darkening (0/1)" id="skin"><br><br>
+<input type="number" placeholder="Hair Growth (0/1)" id="hair"><br><br>
+<input type="number" placeholder="Weight Gain (0/1)" id="weight"><br><br>
+<input type="number" step="0.01" placeholder="AMH" id="amh"><br><br>
+<input type="number" placeholder="Cycle (0=Regular,1=Irregular)" id="cycle"><br><br>
+<input type="number" step="0.01" placeholder="FSH/LH" id="ratio"><br><br>
+<input type="number" step="0.01" placeholder="LH" id="lh"><br><br>
+<input type="number" placeholder="Fast Food (0/1)" id="fastfood"><br><br>
+</div>
+
+<!-- THYROID -->
+<h3>Thyroid Inputs</h3>
+<input type="number" placeholder="TSH" id="TSH"><br><br>
+<input type="number" placeholder="TT4" id="TT4"><br><br>
+<input type="number" placeholder="T4U" id="T4U"><br><br>
+<input type="number" placeholder="FTI" id="FTI"><br><br>
+
+<button type="submit">Predict</button>
+
+</form>
+
+<h3 id="result"></h3>
+
+<script>
+
+// SHOW/HIDE PCOS
+document.getElementById("gender").addEventListener("change", function() {
+    document.getElementById("pcosSection").style.display =
+        this.value === "female" ? "block" : "none";
+});
+
+// VALIDATION FUNCTION
+function validateFields(fields) {
+    for (let field of fields) {
+        let value = document.getElementById(field).value;
+        if (value === "" || isNaN(value)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// MAIN PREDICT
+document.getElementById("predictionForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const gender = document.getElementById("gender").value;
+
+    if (gender === "") {
+        alert("Select gender!");
+        return;
+    }
+
+    // ---------------- DIABETES ----------------
+    const diabetesFields = [
+        "Pregnancies","Glucose","BloodPressure",
+        "SkinThickness","Insulin","BMI","DPF","Age"
+    ];
+
+    if (!validateFields(diabetesFields)) {
+        alert("Fill all Diabetes fields!");
+        return;
+    }
+
+    let d = {
+        "Pregnancies": Number(Pregnancies.value),
+        "Glucose": Number(Glucose.value),
+        "BloodPressure": Number(BloodPressure.value),
+        "SkinThickness": Number(SkinThickness.value),
+        "Insulin": Number(Insulin.value),
+        "BMI": Number(BMI.value),
+        "DiabetesPedigreeFunction": Number(DPF.value),
+        "Age": Number(Age.value)
+    };
+
+    let d_res = await fetch("http://127.0.0.1:5000/predict_diabetes", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(d)
+    });
+
+    let d_json = await d_res.json();
+
+    let output = "🩺 Diabetes Risk: <b>" + d_json.risk_percentage + "%</b><br>";
+
+    // ---------------- PCOS ----------------
+    if (gender === "female") {
+
+        const pcosFields = [
+            "folR","folL","skin","hair","weight",
+            "amh","cycle","ratio","lh","fastfood"
+        ];
+
+        if (!validateFields(pcosFields)) {
+            alert("Fill all PCOS fields!");
+            return;
+        }
+
+        let p = {
+            "Follicle No. (R)": Number(folR.value),
+            "Follicle No. (L)": Number(folL.value),
+            "Skin darkening (Y/N)": Number(skin.value),
+            "hair growth(Y/N)": Number(hair.value),
+            "Weight gain(Y/N)": Number(weight.value),
+            "AMH(ng/mL)": Number(amh.value),
+            "Cycle(R/I)": Number(cycle.value),
+            "FSH/LH": Number(ratio.value),
+            "LH(mIU/mL)": Number(lh.value),
+            "Fast food (Y/N)": Number(fastfood.value)
+        };
+
+        let p_res = await fetch("http://127.0.0.1:5000/predict_pcos", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(p)
+        });
+
+        let p_json = await p_res.json();
+
+        output += "🌸 PCOS Risk: <b>" + p_json.risk_percentage + "%</b><br>";
+    }
+
+    // ---------------- THYROID ----------------
+    const thyroidFields = ["TSH","TT4","T4U","FTI"];
+
+    if (!validateFields(thyroidFields)) {
+        alert("Fill all Thyroid fields!");
+        return;
+    }
+
+    let t = {
+        "age": Number(Age.value),
+        "sex": gender === "male" ? 1 : 0,
+        "TSH": Number(TSH.value),
+        "TT4": Number(TT4.value),
+        "T4U": Number(T4U.value),
+        "FTI": Number(FTI.value)
+    };
+
+    let t_res = await fetch("http://127.0.0.1:5000/predict_thyroid", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(t)
+    });
+
+    let t_json = await t_res.json();
+
+    output += "🧠 Thyroid Risk: <b>" + t_json.confidence + "</b>";
+
+    document.getElementById("result").innerHTML = output;
+});
+
+</script>
+
+</body>
+</html>
